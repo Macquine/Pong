@@ -134,7 +134,7 @@ public class Pong implements Runnable { // the Class by which we display our rec
     }
 
     public boolean ballHitboundry() {
-        if ((p.ball_y_pos >= (screenSize.height - p.ballDimension.width))
+        if ((p.ball_y_pos >= (screenSize.height - p.ballDimension.height))
                 || (p.ball_y_pos <= 0)) {
             return true;
         }
@@ -177,7 +177,6 @@ public class Pong implements Runnable { // the Class by which we display our rec
     public void moveBall() {
         if (ballHitboundry() == true) {
             move_y = -1 * move_y;
-            // p.ball_y_pos = 990;
         }
         checkBallThroughWall();
         checkHitBat();
@@ -196,7 +195,6 @@ public class Pong implements Runnable { // the Class by which we display our rec
         } else if (distanceFromMiddle < -5) {
             p.y_pos_p2 -= 5;
         }
-        // p.repaint();
     }
 
     public void run() {
@@ -230,16 +228,15 @@ public class Pong implements Runnable { // the Class by which we display our rec
     public void moveIt(KeyEvent evnt) {
         switch (evnt.getKeyCode()) {
             case KeyEvent.VK_DOWN:
-                // System.out.println("Down");
-                if (p.y_pos_p1 < 900) {
-                    p.y_pos_p1 += 20;
+                if (p.y_pos_p1 < (screenSize.height - p.batDimensions.height) && !paused) {
+                    System.out.println(p.y_pos_p1);
+                    p.y_pos_p1 = Math.min((screenSize.height - p.batDimensions.height), (p.y_pos_p1 + 20));
                 }
                 refresh();
                 break;
             case KeyEvent.VK_UP:
-                // System.out.println("up");
-                if (p.y_pos_p1 > 0) {
-                    p.y_pos_p1 -= 20;
+                if (p.y_pos_p1 > 0 && !paused) {
+                    p.y_pos_p1 = Math.max((p.y_pos_p1 - 20), 0);
                 }
                 refresh();
                 break;
