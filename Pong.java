@@ -113,16 +113,8 @@ public class Pong implements Runnable { // the Class by which we display our rec
         c.setLayout(new BorderLayout());
         c.setBackground(Color.red);
         c.setPreferredSize(new Dimension(1000, 1000));
+        getUsableScreenSize();
 
-        // Get the GraphicsConfiguration of the JFrame
-        GraphicsConfiguration gc = c.getGraphicsConfiguration();
-
-        // Get the screen device
-        GraphicsDevice screen = gc.getDevice();
-
-        // Get the screen size
-        screenSize = new Dimension(screen.getDisplayMode().getWidth(), screen.getDisplayMode().getHeight());
-        System.out.println(screenSize);
         c.setPreferredSize(screenSize);
         p = new MyPanel(screenSize);
         c.add(p);
@@ -131,6 +123,28 @@ public class Pong implements Runnable { // the Class by which we display our rec
         // sets close behavior; EXIT_ON_CLOSE invokes System.exit(0) on closing the
         // JFrame
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
+    public void getUsableScreenSize() {
+        GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice()
+                .getDefaultConfiguration();
+        Rectangle bounds = gc.getBounds();
+        Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(gc);
+
+        int usableWidth = bounds.width - screenInsets.left - screenInsets.right;
+        int usableHeight = bounds.height - screenInsets.top - screenInsets.bottom;
+
+        // Create a temporary JFrame to get its insets
+        JFrame tempFrame = new JFrame(gc);
+        tempFrame.pack();
+        Insets frameInsets = tempFrame.getInsets();
+        tempFrame.dispose();
+
+        // Subtract the JFrame insets from the usable screen size
+        usableWidth -= frameInsets.left + frameInsets.right;
+        usableHeight -= frameInsets.top + frameInsets.bottom;
+
+        screenSize = new Dimension(usableWidth, usableHeight);
     }
 
     public boolean ballHitboundry() {
