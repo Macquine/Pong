@@ -1,34 +1,63 @@
 import javax.swing.*;
-import java.awt.Color;
-import java.awt.EventQueue;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.geom.Rectangle2D;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.*;
-import java.awt.Canvas;
-import java.awt.Dimension;
-import java.awt.image.BufferStrategy;
 import java.awt.event.*;
-import java.lang.Math;
+
+import javax.swing.JFrame;
 
 // MyPanel extends JPanel, which will eventually be placed in a JFrame
 
 class MyPanel extends JPanel {
-    int y_pos_p1 = 450;
-    int x_pos_p1 = 100;
-    int y_pos_p2 = 450;
-    int x_pos_p2 = 880;
-    int ball_y_pos = 490;
-    int ball_x_pos = 490;
+    int ball_y_pos;
+    int ball_x_pos;
+    int y_pos_p1;
+    int x_pos_p1;
+    int y_pos_p2;
+    int x_pos_p2;
+    Dimension batDimensions;
+    Dimension ballDimension;
+    Dimension screenSize;
+    Rectangle batP1Bounds;
+    Rectangle batP2Bounds;
+    Rectangle ballBounds;
 
     // custom painting is performed by the paintComponent method
-    public MyPanel() {
+    public MyPanel(Dimension screenSize) {
+        this.screenSize = screenSize;
+        this.initDimensions();
+        this.initPositions();
         setBackground(Color.BLACK);
-        setPreferredSize(new Dimension(1000, 1000));
+        setPreferredSize(screenSize);
+    }
+
+    public void initDimensions() {
+        int objectWidth = (int) (0.02 * this.screenSize.width);
+        int ballWidth = objectWidth;
+        int batWidth = objectWidth;
+        int batHeight = (int) (0.15 * this.screenSize.height);
+        this.batDimensions = new Dimension(batWidth, batHeight);
+        this.ballDimension = new Dimension(ballWidth, ballWidth);
+    }
+
+    public void resetBallPositions() {
+        this.ball_x_pos = (int) (0.5 * this.screenSize.width) - (int) (0.5 * this.ballDimension.width);
+        this.ball_y_pos = (int) (0.5 * this.screenSize.height) - (int) (0.5 * this.ballDimension.height);
+    }
+
+    public void initPositions() {
+        // keep the player 10% of screenwidth from wall
+        int distPlayersFromWallsHorizontal = (int) (0.1 * this.screenSize.width);
+        // center player in the middle in height perspective, drawing starts at bottom
+        // so need to substract half the bat height.
+        int distPlayersFromWallsVertical = (int) (0.5 * this.screenSize.height)
+                - (int) (0.5 * this.batDimensions.height);
+        this.x_pos_p1 = distPlayersFromWallsHorizontal;
+        this.y_pos_p1 = distPlayersFromWallsVertical;
+        this.x_pos_p2 = this.screenSize.width - distPlayersFromWallsHorizontal;
+        this.y_pos_p2 = distPlayersFromWallsVertical;
+        resetBallPositions();
     }
 
     @Override
@@ -41,9 +70,15 @@ class MyPanel extends JPanel {
         g2.setColor(Color.red); // sets Graphics2D color
         // draw the rectangle
         g.setColor(Color.WHITE);
-        g2.fillRect(x_pos_p1, y_pos_p1, 20, 100); // drawRect(x-position, y-position, width, height)
-        g2.fillRect(x_pos_p2, y_pos_p2, 20, 100);
-        g2.fillRect(ball_x_pos, ball_y_pos, 20, 20);
+        g2.fillRect(this.x_pos_p1, this.y_pos_p1, this.batDimensions.width, this.batDimensions.height);
+        g2.fillRect(this.x_pos_p2, this.y_pos_p2, this.batDimensions.width, this.batDimensions.height);
+        g2.fillRect(this.ball_x_pos, this.ball_y_pos, this.ballDimension.width, this.ballDimension.width);
+        this.ballBounds = new Rectangle(this.ball_x_pos, this.ball_y_pos, this.batDimensions.width,
+                this.batDimensions.height);
+        this.batP1Bounds = new Rectangle(this.x_pos_p1, this.y_pos_p1, this.batDimensions.width,
+                this.batDimensions.height);
+        this.batP2Bounds = new Rectangle(this.x_pos_p2, this.y_pos_p2, this.batDimensions.width,
+                this.batDimensions.height);
     }
 }
 
@@ -55,29 +90,13 @@ public class Pong implements Runnable { // the Class by which we display our rec
     int move_y = -5;
     int scoreP1 = 0;
     int scoreP2 = 0;
+    Dimension screenSize;
     double maxRadian = Math.toRadians(70);
+    boolean paused = false;
 
     public Pong() {
-        f = new JFrame();
-        // get the content area of Panel.
-        Container c = f.getContentPane();
-        // set the LayoutManager
-        c.setLayout(new BorderLayout());
-        c.setBackground(Color.red);
-        c.setPreferredSize(new Dimension(1000, 1000));
-        p = new MyPanel();
-        // add MyPanel object into container
-        // f.setSize(1000, 1000);
-        c.add(p);
-        f.pack();
-        // c.setSize(1200, 1200);
-        // set the size of the JFrame
-        // make the JFrame visible
-        f.setVisible(true);
-        // sets close behavior; EXIT_ON_CLOSE invokes System.exit(0) on closing the
-        // JFrame
-        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        createFrame();
         f.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent evt) {
@@ -86,56 +105,72 @@ public class Pong implements Runnable { // the Class by which we display our rec
         });
     }
 
+    public void createFrame() {
+        f = new JFrame();
+        // get the content area of Panel.
+        Container c = f.getContentPane();
+        // set the LayoutManager
+        c.setLayout(new BorderLayout());
+        c.setBackground(Color.red);
+        c.setPreferredSize(new Dimension(1000, 1000));
+
+        // Get the GraphicsConfiguration of the JFrame
+        GraphicsConfiguration gc = c.getGraphicsConfiguration();
+
+        // Get the screen device
+        GraphicsDevice screen = gc.getDevice();
+
+        // Get the screen size
+        screenSize = new Dimension(screen.getDisplayMode().getWidth(), screen.getDisplayMode().getHeight());
+        System.out.println(screenSize);
+        c.setPreferredSize(screenSize);
+        p = new MyPanel(screenSize);
+        c.add(p);
+        f.pack();
+        f.setVisible(true);
+        // sets close behavior; EXIT_ON_CLOSE invokes System.exit(0) on closing the
+        // JFrame
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
     public boolean ballHitboundry() {
-        if (p.ball_y_pos >= 980 || p.ball_y_pos <= 0) {
+        if ((p.ball_y_pos >= (screenSize.height - p.ballDimension.width))
+                || (p.ball_y_pos <= 0)) {
             return true;
         }
         return false;
     }
 
     public void checkBallThroughWall() {
-        if (p.ball_x_pos <= -20) {
-            p.ball_x_pos = 490;
-            p.ball_y_pos = 490;
+        if (p.ball_x_pos <= -p.ballDimension.width) {
+            p.resetBallPositions();
             scoreP2++;
             move_y = 0;
             move_x = 5;
         }
-        if (p.ball_x_pos >= 1000) {
-            p.ball_x_pos = 490;
-            p.ball_y_pos = 490;
+        if (p.ball_x_pos >= screenSize.width) {
+            p.resetBallPositions();
             scoreP1++;
             move_y = 0;
             move_x = -5;
         }
     }
 
+    public void determineBallMoveAfterBatHit(int y_pos_p, int direction) {
+        double middleOfBat = (y_pos_p + 99 + y_pos_p - 19) / 2;
+        double distanceFromMiddle = p.ball_y_pos - middleOfBat;
+        double scale = y_pos_p + 99 - middleOfBat;
+        double radian = (distanceFromMiddle / scale) * maxRadian;
+        move_x = (int) (Math.cos(radian) * direction * 10);
+        move_y = (int) (Math.sin(radian) * 10);
+    }
+
     public void checkHitBat() {
-        if ((p.ball_y_pos <= (p.y_pos_p1 + 99) && p.ball_y_pos >= p.y_pos_p1 - 19)
-                && (p.ball_x_pos <= (p.x_pos_p1 + 20) && p.ball_x_pos >= p.x_pos_p1)) {
-            double middleOfBat = (p.y_pos_p1 + 99 + p.y_pos_p1 - 19) / 2;
-            // System.out.println("middleOfBat: " + middleOfBat);
-            double distanceFromMiddle = p.ball_y_pos - middleOfBat;
-            // System.out.println("distanceFromMiddle: " + distanceFromMiddle);
-            double scale = p.y_pos_p1 + 99 - middleOfBat;
-            // System.out.println("scale: " + scale);
-            double radian = (distanceFromMiddle / scale) * maxRadian;
-            // System.out.println("radian: " + radian);
-            move_x = (int) (Math.cos(radian) * 10);
-            move_y = (int) (Math.sin(radian) * 10);
-            // System.out.println("Move x: " + move_x);
-            // System.out.println("Move y " + move_y);
+        if (p.ballBounds.intersects(p.batP1Bounds)) {
+            determineBallMoveAfterBatHit(p.y_pos_p1, 1);
         }
-        if ((p.ball_y_pos <= (p.y_pos_p2 + 99) && p.ball_y_pos >= p.y_pos_p2 - 19)
-                && (p.ball_x_pos >= (p.x_pos_p2 - 20) && p.ball_x_pos <= (p.x_pos_p2))) {
-            double middleOfBat = (p.y_pos_p2 + 99 + p.y_pos_p2 - 19) / 2;
-            double distanceFromMiddle = p.ball_y_pos - middleOfBat;
-            double scale = p.y_pos_p2 + 99 - middleOfBat;
-            double radian = (distanceFromMiddle / scale) * maxRadian;
-            move_x = (int) (Math.cos(radian) * -10);
-            move_y = (int) (Math.sin(radian) * 10);
-            System.out.println("Move x: " + move_x);
-            System.out.println("Move y" + move_y);
+        if (p.ballBounds.intersects(p.batP2Bounds)) {
+            determineBallMoveAfterBatHit(p.y_pos_p2, -1);
         }
     }
 
@@ -165,14 +200,25 @@ public class Pong implements Runnable { // the Class by which we display our rec
     }
 
     public void run() {
-        while (running = true) {
-            try {
-                Thread.sleep(25);
-                moveBall();
-                moveCPU();
-                // System.out.println("hallo daar");
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        while (running) {
+            if (!paused) {
+                try {
+                    Thread.sleep(25);
+                    moveBall();
+                    moveCPU();
+                    // System.out.println("hallo daar");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            synchronized (this) {
+                while (paused) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }
@@ -194,6 +240,16 @@ public class Pong implements Runnable { // the Class by which we display our rec
                 // System.out.println("up");
                 if (p.y_pos_p1 > 0) {
                     p.y_pos_p1 -= 20;
+                }
+                refresh();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                paused = !paused;
+                System.out.println("and now paused is:" + paused);
+                if (!paused) {
+                    synchronized (this) {
+                        this.notify();
+                    }
                 }
                 refresh();
                 break;
